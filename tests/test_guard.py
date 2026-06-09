@@ -372,7 +372,8 @@ class TestCommandRouter:
 
     def test_version(self):
         r = self.s.handle_command("/shieldr version")
-        assert "1.2.0" in r
+        from guard import SKILL_VERSION
+        assert SKILL_VERSION in r
 
     def test_status(self):
         r = self.s.handle_command("/shieldr status")
