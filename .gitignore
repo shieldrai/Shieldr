@@ -77,9 +77,26 @@ Thumbs.db
 *.sublime-project
 *.sublime-workspace
 
-# ---------------------------------------------------------------------------
-# Logs & Runtime Artifacts
-# ---------------------------------------------------------------------------
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Config with secrets
+config/settings.yaml
+
+# Logs & runtime artifacts
 *.log
 logs/
 *.tmp
@@ -87,10 +104,13 @@ logs/
 *.orig
 *.rej
 
-# ---------------------------------------------------------------------------
-# Build & Packaging
-# ---------------------------------------------------------------------------
+# Build / packaging
 *.whl
 *.tar.gz
 *.zip
 node_modules/
+
+# IDE
+.vscode/
+.idea/
+*.swp

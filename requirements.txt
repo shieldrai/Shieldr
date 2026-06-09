@@ -1,14 +1,15 @@
 # Shieldr — Python dependencies
 #
-# guard.py uses only the Python standard library for all core detection:
-#   base64, binascii, math, re, sys, unicodedata, dataclasses, typing
+# Production runtime: zero external dependencies.
+# guard.py uses only the Python standard library:
+#   base64, math, re, sys, unicodedata, dataclasses, typing, argparse
 #
-# No third-party runtime dependencies are required for the core skill.
+# The packages below are for development and testing only.
 
-# ---------------------------------------------------------------------------
-# Testing & Development
-# ---------------------------------------------------------------------------
+# Testing
 pytest>=8.1.0
 pytest-cov>=5.0.0
+
+# Code quality
 black>=24.3.0
 isort>=5.13.2
