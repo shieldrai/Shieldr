@@ -1,172 +1,174 @@
-# Shieldr — Architecture Overview
+# Shieldr — Architecture
 
-## System Design
+## Overview
 
-Shieldr is designed as a modular, async-first Python skill for Bankr.bot.
-The system is decomposed into five independent security modules, each
-responsible for a single security domain, plus three shared infrastructure
-modules.
+Shieldr is intentionally simple. The entire core engine lives in a single
+file (`guard.py`) with no required third-party dependencies. This makes it
+easy to audit, easy to deploy, and easy to extend.
+
+---
+
+## Component Map
 
 ```
-Bankr.bot Runtime
+guard.py
+├── Detection layer          — independent detector functions
+│   ├── _detect_base64()
+│   ├── _detect_hex()
+│   ├── _detect_rot13()
+│   ├── _detect_morse()
+│   ├── _detect_invisible_unicode()
+│   ├── _detect_high_entropy()
+│   └── _detect_injection_keywords()
+│
+├── Intent verifier          — _verify_intent()
+├── Spending policy          — check_spending_policy()
+├── Dry-run stub             — dry_run_transaction()
+│
+├── Data model               — Finding, ScanResult
+├── Report formatter         — format_report()
+│
+├── Command router           — Shieldr class, handle_command()
+└── CLI entrypoint           — __main__, _run_self_test()
+
+modules/report_builder.py    — JSON / Markdown output helpers
+tests/test_guard.py          — Pytest test suite
+```
+
+---
+
+## Detection Pipeline
+
+Every `scan()` call runs all detectors in sequence against the raw input text.
+Each detector independently appends `Finding` objects to the `ScanResult`.
+
+```
+scan(text)
+  │
+  ├─ _detect_invisible_unicode()   ← runs first (invisible chars can hide other encodings)
+  ├─ _detect_base64()
+  ├─ _detect_hex()
+  ├─ _detect_morse()
+  ├─ _detect_rot13()
+  ├─ _detect_high_entropy()
+  ├─ _detect_injection_keywords()
+  └─ _verify_intent()
        │
-       ▼  handle_command(command, context)
-   guard.py  ──────────────────────────────────────
-       │                                           │
-       │  (command router)                         │
-       │                                           │
-   ┌───▼──────────────────────────────────────┐   │
-   │            Security Modules              │   │
-   │                                          │   │
-   │  WalletGuard   ─► risk findings          │   │
-   │  TxShield      ─► tx risk findings       │   │
-   │  ContractAudit ─► audit findings         │   │
-   │  TokenRadar    ─► token risk findings    │   │
-   │  PhishNet      ─► url / sig findings     │   │
-   └───────────────┬──────────────────────────┘   │
-                   │                               │
-                   ▼                               │
-              RiskEngine  (score aggregator)       │
-                   │                               │
-                   ▼                               │
-            ReportBuilder  (output formatter)      │
-                   │                               │
-                   ▼                               │
-            ChainClient  (RPC abstraction)  ───────┘
-                   │
-                   ▼
-         Ethereum / BSC / Polygon / …
+       └─ ScanResult._compute()   → risk_score, verdict
 ```
 
-## Module Responsibilities
+Detectors do not short-circuit. All detectors always run so that compound
+attacks (e.g. Base64-inside-Morse) are fully characterised.
 
-### guard.py (Entrypoint)
-- Parses raw command strings from Bankr.bot
-- Routes commands to the appropriate module via a dispatch table
-- Catches all exceptions and returns user-friendly error messages
-- Exposes a module-level `handle_command()` for Bankr.bot integration
-- Maintains a lazy singleton of the `Shieldr` class
+---
 
-### WalletGuard
-- Queries TRM Labs, Chainalysis, and GoPlus for wallet risk data
-- Checks on-chain transaction history for exploit/drainer interactions
-- Calculates a weighted aggregate risk score (0–100)
-- Runs all sub-checks concurrently using `asyncio.gather()`
+## Risk Scoring
 
-### TxShield
-- Routes simulation to Tenderly API if configured, else local Anvil fork
-- Parses the EVM call trace for:
-  - Token transfer events (ERC-20 Transfer logs)
-  - Approval events (ERC-20 Approval, ERC-721 ApprovalForAll)
-  - Re-entrant call patterns
-- Handles both raw hex transactions and pending tx hashes
+Each finding contributes a severity weight to the final `risk_score` (0–100):
 
-### ContractAudit
-- Fetches deployed bytecode via `eth_getCode`
-- Extracts 4-byte function selectors and matches against known dangerous selectors
-- Detects EIP-1967 and EIP-897 proxy patterns
-- Enriches findings with verified source data when available
+| Severity | Weight |
+|---|---|
+| CRITICAL | +40 |
+| HIGH | +25 |
+| MEDIUM | +12 |
+| LOW | +5 |
+| INFO | +0 |
 
-### TokenRadar
-- Primary honeypot detection via GoPlus Labs `/token/security` endpoint
-- Secondary confirmation via Tenderly fork simulation (buy + sell)
-- Liquidity lock status from Unicrypt, Team Finance, and PinkLock contracts
-- Top-holder data from block explorer API
+Score is capped at 100. Verdict thresholds:
 
-### PhishNet
-- Concurrent queries to PhishTank, URLhaus, and CryptoScamDB
-- Local typosquatting detection using Levenshtein distance
-- Homograph attack detection via Unicode category analysis
-- EIP-712 signature decoder for permit and setApprovalForAll risk checks
+| Score | Verdict |
+|---|---|
+| 0–24 | CLEAN |
+| 25–59 | SUSPICIOUS |
+| 60–100 | MALICIOUS |
 
-### RiskEngine
-- Provides a single `compute(findings)` method used by all modules
-- Applies configurable severity weights to produce a 0–100 score
-- Maps scores to grades (A–F) using threshold table
+---
 
-### ReportBuilder
-- Single class responsible for all user-facing output
-- Enforces consistent report format across all command types
-- Supports `brief` mode for compact one-line summaries
+## Detector Design Principles
 
-### ChainClient
-- Wraps web3.py with per-chain connection pooling
-- Automatic retry with exponential back-off via `tenacity`
-- Lazy connection initialisation (connects on first use per chain)
-- Utility methods for address validation and checksumming
+### 1. No false positives on common inputs
 
-## Data Flow — Wallet Check Example
+Every detector is tuned to avoid triggering on normal DeFi inputs:
+- ETH addresses, transaction hashes, token amounts
+- Common English phrases and questions
+- Numeric values and unit strings
 
-```
-User: "/shieldr wallet 0xAbC…"
-          │
-          ▼
-    guard.py._parse_command()
-          │
-          ▼
-    guard.py._handle_wallet(["0xAbC…"], context)
-          │
-          ▼
-    WalletGuard.score("0xAbC…", chain_id=1)
-          │
-          ├─► _check_sanctions()          ─┐
-          ├─► _check_exploit_interactions() ├─ asyncio.gather()
-          ├─► _check_mixer_usage()         ─┤
-          ├─► _check_wallet_age()          ─┤
-          └─► _check_counterparty_risk()   ─┘
-                    │
-                    ▼
-          WalletGuard._aggregate_score(findings)
-                    │
-                    ▼
-          WalletRiskResult(score=72, grade="D", …)
-                    │
-                    ▼
-          ReportBuilder.build_wallet_report(result)
-                    │
-                    ▼
-          "━━━━━━━━━━━━━━━━━
-           🛡️  SHIELDR REPORT
-           …"
-                    │
-                    ▼
-          Bankr.bot delivers to user
-```
+### 2. Decode and surface
 
-## Concurrency Model
+Where possible, detectors recover the hidden plaintext and attach it to the
+`Finding.decoded` field and `ScanResult.decoded_payload`. This allows
+downstream logic (or the user) to see exactly what was hidden.
 
-All I/O-bound operations (RPC calls, API requests) are implemented as
-`async def` coroutines. Within each module, independent checks run
-concurrently via `asyncio.gather()` to minimise latency.
+### 3. Independent and composable
 
-Bankr.bot must call Shieldr from an async context or use
-`asyncio.run(handle_command(...))` if calling synchronously.
+Detectors are pure functions: `(text: str, result: ScanResult) -> None`.
+They have no shared state and can be called individually for testing.
 
-## Configuration Hierarchy
+---
 
-```
-Environment Variables  (highest priority)
-         │
-         ▼
-config/settings.yaml   (local overrides)
-         │
-         ▼
-Built-in defaults      (lowest priority)
+## Spending Policy
+
+The spending policy engine (`check_spending_policy`) is intentionally
+stateless and accepts the current daily total as an argument. This allows
+the Bankr.bot runtime to maintain session state externally (database,
+Redis, etc.) and pass it in per-call.
+
+The `Shieldr` class maintains a simple in-memory `_daily_spend` counter
+for development and testing. Replace this with persistent storage in
+production.
+
+---
+
+## Dry-Run Simulation
+
+`dry_run_transaction()` is a stub that validates required fields and returns
+a structured result. To connect a real simulation provider:
+
+1. Replace the stub body with a call to Tenderly, Alchemy Simulate, or a
+   local Anvil node.
+2. Map the provider response to the standard result dict schema.
+3. No other changes needed — the rest of the system consumes the dict.
+
+---
+
+## Extending Shieldr
+
+### Adding a new detector
+
+```python
+def _detect_custom(text: str, result: ScanResult) -> None:
+    if "suspicious_pattern" in text:
+        result.add(Finding(
+            severity="HIGH",
+            code="CUSTOM_DETECTION",
+            detail="Custom pattern found.",
+        ))
+
+# Then call it inside scan():
+def scan(text: str, context: dict | None = None) -> ScanResult:
+    ...
+    _detect_custom(text, result)
+    ...
 ```
 
-## Error Handling
+### Adding a new command
 
-- All exceptions within command handlers are caught in `guard.py`
-- Sub-module errors are logged and surfaced as user-friendly messages
-- RPC failures fall back to alternative endpoints when configured
-- Missing API keys gracefully degrade to available fallback data sources
+Add a new `if sub == "mycommand":` branch inside `Shieldr.handle_command()`.
+Update the `_HELP_TEXT` constant and add tests to `tests/test_guard.py`.
 
-## Caching
+---
 
-Risk results are cached in-memory using `cachetools.TTLCache`:
-- Wallet scores: 5 minutes
-- Token analysis: 10 minutes
-- Contract audits: 1 hour
-- URL checks: 3 minutes
+## Security Considerations
 
-Cache TTLs are configurable in `config/settings.yaml`.
+- Shieldr is a **detection** layer, not a firewall. It surfaces findings but
+  does not automatically block execution — that decision belongs to the
+  Bankr.bot runtime.
+- Detector bypass is possible with novel encoding schemes not yet covered.
+  Shieldr should be treated as one layer of a defence-in-depth strategy.
+- Never log or store the raw content of flagged inputs in plaintext.
+
+---
+
+## License
+
+MIT © 2026 ShieldrAI

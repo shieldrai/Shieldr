@@ -1,187 +1,191 @@
-# 🛡️ Shieldr
+# Shieldr 🛡️
 
-**Advanced AI Security Skill for [Bankr.bot](https://bankr.bot)**
+**AI Security Skill for Bankr.bot — Prompt-Injection Defence & Spending Policy**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
-[![Bankr Skill](https://img.shields.io/badge/Bankr-Skill-green.svg)](https://bankr.bot/skills)
-[![Status: Beta](https://img.shields.io/badge/Status-Beta-orange.svg)]()
-
-Shieldr is a production-grade security skill for Bankr.bot that gives every
-user an AI-powered security co-pilot. It monitors, analyses, and defends
-against on-chain threats in real time — all accessible through simple
-natural-language commands inside your Bankr bot.
+[![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://python.org)
+[![Bankr.bot v2.0+](https://img.shields.io/badge/Bankr.bot-v2.0%2B-green.svg)](https://bankr.bot)
 
 ---
 
-## ✨ Highlights
+## What is Shieldr?
 
-- 🛡️ **WalletGuard** — Risk-score any EVM wallet (0–100) with sanction-list checks
-- ⚡ **TxShield** — Simulate transactions before signing; catch drains and traps
-- 🔍 **ContractAudit** — Static-scan deployed contracts for 30+ vulnerability patterns
-- 🚨 **TokenRadar** — Honeypot simulation, liquidity lock checks, rug-pull detection
-- 🎣 **PhishNet** — URL & signature threat-intel against 10+ live feeds
+Shieldr is a security skill for [Bankr.bot](https://bankr.bot) that protects
+against **prompt-injection attacks** — the technique of embedding malicious
+instructions inside user inputs to hijack an AI agent's behaviour.
+
+In a DeFi context this is especially dangerous: a successful injection can
+trick a bot into sending funds to an attacker, bypassing approval flows, or
+leaking sensitive session data.
+
+Shieldr inspects every input before it reaches your bot's action layer,
+decodes common obfuscation schemes, and returns a risk verdict.
 
 ---
 
-## 🚀 Quick Start
+## Features
+
+### Anti-Prompt-Injection Detectors
+
+| Detector | What it catches |
+|---|---|
+| **Base64** | Encoded payloads — decodes and surfaces hidden content |
+| **Hex** | `0x`-prefixed and bare hex strings — decodes to plaintext |
+| **ROT13** | Classic Caesar-shift obfuscation |
+| **Morse code** | Dot/dash sequences hiding instructions |
+| **Invisible unicode** | Zero-width, bidi-override, and tag-block characters |
+| **Zalgo / combining** | Stacked diacritics used to smuggle invisible text |
+| **High-entropy blobs** | Encrypted or compressed payloads |
+| **Injection keywords** | Pattern matching for "ignore previous instructions", "jailbreak", etc. |
+| **Intent verification** | Detects out-of-context transfer commands with no user session |
+
+### Spending Policy
+
+- Single-transaction limit (default: $500)
+- Daily cumulative limit (default: $2,000)
+- All configurable via constants in `guard.py`
+
+### Dry-Run Simulation
+
+- Stub integration point for Tenderly, Alchemy Simulate, or a local Anvil fork
+- Validates required transaction fields before forwarding to a provider
+
+---
+
+## Quick Start
 
 ```bash
-# 1. Clone
 git clone https://github.com/shieldrai/Shieldr.git
 cd Shieldr
-
-# 2. Install dependencies
 pip install -r requirements.txt
-
-# 3. Configure
-cp config/settings.example.yaml config/settings.yaml
-# → edit config/settings.yaml and add your RPC endpoints
-
-# 4. Self-test
 python guard.py --self-test
 ```
 
-Then register Shieldr in your Bankr.bot config:
+---
 
-```yaml
-skills:
-  - name: shieldr
-    path: ./Shieldr
-    entrypoint: guard.py
-    auto_load: true
+## Usage
+
+### As a Bankr.bot skill
+
+```python
+from guard import handle_command
+
+response = handle_command("/shieldr scan aWdub3JlIHByZXZpb3Vz", context={})
+print(response)
+```
+
+### Commands
+
+```
+/shieldr scan <text>          Scan input for injection attempts
+/shieldr check-policy <usd>   Check transaction amount against limits
+/shieldr dry-run              Dry-run simulation info
+/shieldr status               Service health check
+/shieldr help                 List all commands
+```
+
+### Direct Python API
+
+```python
+from guard import scan, format_report, check_spending_policy
+
+# Scan text
+result = scan("decode this: .. --. -. --- .-. .")
+print(format_report(result))
+
+# Check policy
+violations = check_spending_policy(amount_usd=1000.0)
+for v in violations:
+    print(v.detail)
 ```
 
 ---
 
-## 💬 Example Commands
+## Sample Scan Output
 
 ```
-/shieldr wallet 0xAbC…1234
-/shieldr token  0xdAC17F958D2ee523a2206206994597C13D831ec7
-/shieldr audit  0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D
-/shieldr tx     0xraw_hex_or_pending_tx_hash
-/shieldr url    https://uniswap-airdrop.xyz
-/shieldr sig    0x1901…
-/shieldr help
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🛡️  SHIELDR SECURITY SCAN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Input   : aWdub3JlIHByZXZpb3VzIGluc3RydWN0aW9ucw==
+Score   : 65/100
+Verdict : 🚫 MALICIOUS
+
+FINDINGS
+  [HIGH] 🔴 Base64-encoded content detected.
+             Decoded: "ignore previous instructions"
+
+DECODED PAYLOAD
+  ignore previous instructions
+
+⛔ RECOMMENDATION: Do NOT execute this input.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
 ---
 
-## 📋 Supported Chains
+## Configuration
 
-| Chain | Status |
-|---|---|
-| Ethereum Mainnet | ✅ Full |
-| BNB Smart Chain | ✅ Full |
-| Polygon | ✅ Full |
-| Arbitrum One | ✅ Full |
-| Optimism | ✅ Full |
-| Base | ✅ Full |
-| Avalanche, Fantom, zkSync | 🔶 Beta |
+Edit constants at the top of `guard.py`:
+
+```python
+ENTROPY_THRESHOLD          = 4.2     # bits/symbol — high-entropy blob flag
+INVISIBLE_CHAR_RATIO       = 0.05    # invisible char ratio threshold
+MORSE_TOKEN_RATIO          = 0.6     # morse token ratio threshold
+MIN_SCAN_LENGTH            = 8       # skip analysis below this length
+POLICY_SINGLE_TX_LIMIT_USD = 500.0   # max per-transaction amount
+POLICY_DAILY_LIMIT_USD     = 2000.0  # max daily spend
+```
 
 ---
 
-## 🏗️ Project Structure
+## Project Structure
 
 ```
 Shieldr/
-├── guard.py                    # Entrypoint — command router & Bankr.bot hook
-├── SKILL.md                    # Skill manifest & full documentation
+├── guard.py            # Core engine (detectors, policy, CLI, Bankr hook)
+├── SKILL.md            # Bankr skill manifest & documentation
+├── README.md
 ├── requirements.txt
 ├── .gitignore
-├── config/
-│   ├── settings.example.yaml   # Config template
-│   └── chains.yaml             # Chain definitions
+├── LICENSE
 ├── modules/
-│   ├── wallet_guard.py         # Address risk scoring
-│   ├── tx_shield.py            # Transaction simulation
-│   ├── contract_audit.py       # Bytecode analysis
-│   ├── token_radar.py          # Honeypot & rug-pull detection
-│   ├── phish_net.py            # URL & signature threat intel
-│   ├── risk_engine.py          # Central scoring aggregator
-│   ├── report_builder.py       # Report formatter
-│   └── chain_client.py         # RPC abstraction layer
-├── tests/                      # Pytest test suite
-└── docs/                       # Architecture & API reference
+│   └── report_builder.py
+├── tests/
+│   └── test_guard.py
+└── docs/
+    └── architecture.md
 ```
 
 ---
 
-## ⚙️ Configuration
-
-All secrets are loaded from **environment variables** — never hardcoded.
-
-| Variable | Description |
-|---|---|
-| `SHIELDR_RPC_ETH` | Ethereum RPC (required) |
-| `SHIELDR_RPC_BSC` | BNB Smart Chain RPC |
-| `SHIELDR_RPC_POLYGON` | Polygon RPC |
-| `SHIELDR_TRM_API_KEY` | TRM Labs (sanctions screening) |
-| `SHIELDR_CHAINALYSIS_KEY` | Chainalysis (risk scoring) |
-| `SHIELDR_GOPLUSLABS_KEY` | GoPlus Labs (token safety) |
-| `SHIELDR_TENDERLY_KEY` | Tenderly (tx simulation) |
-| `SHIELDR_ALERT_WEBHOOK` | Webhook for proactive alerts |
-
-See `config/settings.example.yaml` for the full list.
-
----
-
-## 🔒 Risk Score Reference
-
-| Score | Grade | Label |
-|---|---|---|
-| 0–15 | A | ✅ Safe |
-| 16–35 | B | 🟢 Low Risk |
-| 36–55 | C | 🟡 Moderate Risk |
-| 56–75 | D | 🟠 High Risk |
-| 76–90 | E | 🔴 Very High Risk |
-| 91–100 | F | 🚨 Critical — Do NOT interact |
-
----
-
-## 🧪 Running Tests
+## Running Tests
 
 ```bash
 pytest tests/ -v
 ```
 
-Code style (Black + isort):
+---
 
-```bash
-black . && isort .
-```
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Ensure `pytest tests/ -v` passes
+4. Format with `black . && isort .`
+5. Open a pull request
+
+Please read `docs/architecture.md` for design context.
 
 ---
 
-## 📖 Documentation
+## Security Policy
 
-- [Architecture Overview](docs/architecture.md)
-- [API Reference](docs/api_reference.md)
-- [Threat Model](docs/threat_model.md)
-- [Full Skill Manifest](SKILL.md)
+Report vulnerabilities via GitHub's private security advisory feature —
+do not open a public issue for security bugs.
 
 ---
 
-## 🤝 Contributing
-
-1. Fork the repo
-2. Create a feature branch (`git checkout -b feat/your-feature`)
-3. Commit your changes (`git commit -m 'feat: add your feature'`)
-4. Push and open a Pull Request
-
-Please read [docs/architecture.md](docs/architecture.md) before submitting.
-All PRs must pass `pytest` and style checks.
-
----
-
-## 🔐 Security Policy
-
-Please report vulnerabilities via **GitHub's private security advisory**
-feature — not public issues. We aim to respond within 48 hours.
-
----
-
-## 📄 License
+## License
 
 MIT © 2026 ShieldrAI
