@@ -184,4 +184,4 @@ feature — not public issues. We aim to respond within 48 hours.
 
 ## 📄 License
 
-MIT © 2025 ShieldrAI
+MIT © 2026 ShieldrAI

@@ -306,7 +306,7 @@ programmatically or read as plain text:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Target  : 0xAbC…1234  (Wallet)
 Chain   : Ethereum Mainnet
-Checked : 2025-07-14 10:32 UTC
+Checked : 2026-06-09 10:32 UTC
 
 RISK SCORE   : 72 / 100  (D — High Risk)
 
@@ -414,4 +414,4 @@ opening a public issue.
 
 ## License
 
-MIT © 2025 ShieldrAI
+MIT © 2026 ShieldrAI
