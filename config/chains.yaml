@@ -1,0 +1,75 @@
+# Shieldr — Chain Definitions
+# Maps chain IDs to display names, explorers, and native token metadata.
+
+chains:
+  1:
+    name: "Ethereum Mainnet"
+    short_name: "ETH"
+    native_token: "ETH"
+    explorer: "https://etherscan.io"
+    explorer_api: "https://api.etherscan.io/api"
+    status: "full"
+
+  56:
+    name: "BNB Smart Chain"
+    short_name: "BSC"
+    native_token: "BNB"
+    explorer: "https://bscscan.com"
+    explorer_api: "https://api.bscscan.com/api"
+    status: "full"
+
+  137:
+    name: "Polygon"
+    short_name: "MATIC"
+    native_token: "MATIC"
+    explorer: "https://polygonscan.com"
+    explorer_api: "https://api.polygonscan.com/api"
+    status: "full"
+
+  42161:
+    name: "Arbitrum One"
+    short_name: "ARB"
+    native_token: "ETH"
+    explorer: "https://arbiscan.io"
+    explorer_api: "https://api.arbiscan.io/api"
+    status: "full"
+
+  10:
+    name: "Optimism"
+    short_name: "OP"
+    native_token: "ETH"
+    explorer: "https://optimistic.etherscan.io"
+    explorer_api: "https://api-optimistic.etherscan.io/api"
+    status: "full"
+
+  8453:
+    name: "Base"
+    short_name: "BASE"
+    native_token: "ETH"
+    explorer: "https://basescan.org"
+    explorer_api: "https://api.basescan.org/api"
+    status: "full"
+
+  43114:
+    name: "Avalanche C-Chain"
+    short_name: "AVAX"
+    native_token: "AVAX"
+    explorer: "https://snowtrace.io"
+    explorer_api: "https://api.snowtrace.io/api"
+    status: "beta"
+
+  250:
+    name: "Fantom"
+    short_name: "FTM"
+    native_token: "FTM"
+    explorer: "https://ftmscan.com"
+    explorer_api: "https://api.ftmscan.com/api"
+    status: "beta"
+
+  324:
+    name: "zkSync Era"
+    short_name: "ZK"
+    native_token: "ETH"
+    explorer: "https://explorer.zksync.io"
+    explorer_api: ""
+    status: "beta"
