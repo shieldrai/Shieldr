@@ -21,23 +21,24 @@ tags:
   - spending-policy
 ---
 
-```
-  ╔══════════════════════════════════════════════════╗
-  ║  ███████╗██╗  ██╗██╗███████╗██╗     ██████╗ ██████╗  ║
-  ║  ██╔════╝██║  ██║██║██╔════╝██║     ██╔══██╗██╔══██╗ ║
-  ║  ███████╗███████║██║█████╗  ██║     ██║  ██║██████╔╝ ║
-  ║  ╚════██║██╔══██║██║██╔══╝  ██║     ██║  ██║██╔══██╗ ║
-  ║  ███████║██║  ██║██║███████╗███████╗██████╔╝██║  ██║ ║
-  ║  ╚══════╝╚═╝  ╚═╝╚═╝╚══════╝╚══════╝╚═════╝ ╚═╝  ╚═╝ ║
-  ╚══════════════════════════════════════════════════╝
-```
+<div align="center">
+
+<br>
+
+![Shieldr Logo](https://i.ibb.co/dJzkBScN/image-1-12.jpg)
+
+<br>
 
 # 🛡️ Shieldr v1.3.0
 
 ### *Your Agent's Last Line of Defence*
 
-> Decode every hidden payload. Block every injection attempt.
+> Decode every hidden payload. Block every injection attempt.  
 > Gate every high-risk action behind a human.
+
+<br>
+
+</div>
 
 ---
 

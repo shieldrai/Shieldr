@@ -1,26 +1,27 @@
 
 <div align="center">
 
-```
-╔════════════════════════════════════════════════════════╗
-║                                                        ║
-║    ███████╗██╗  ██╗██╗███████╗██╗     ██████╗ ██████╗  ║
-║    ██╔════╝██║  ██║██║██╔════╝██║     ██╔══██╗██╔══██╗ ║
-║    ███████╗███████║██║█████╗  ██║     ██║  ██║██████╔╝ ║
-║    ╚════██║██╔══██║██║██╔══╝  ██║     ██║  ██║██╔══██╗ ║
-║    ███████║██║  ██║██║███████╗███████╗██████╔╝██║  ██║ ║
-║    ╚══════╝╚═╝  ╚═╝╚═╝╚══════╝╚══════╝╚═════╝ ╚═╝  ╚═╝ ║
-║                                                        ║
-║            AI Security Skill for Bankr.bot             ║
-║        Your Agent's Last Line of Defence  🛡️            ║
-╚════════════════════════════════════════════════════════╝
-```
+<br>
+
+![Shieldr Logo](https://i.ibb.co/dJzkBScN/image-1-12.jpg)
+
+<br>
+
+# 🛡️ Shieldr
+
+### *Your Agent's Last Line of Defence*
+
+> AI Security Skill for Bankr.bot — block every injection, gate every risk.
+
+<br>
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB.svg)](https://python.org)
 [![Bankr.bot v2.0+](https://img.shields.io/badge/Bankr.bot-v2.0%2B-22c55e.svg)](https://bankr.bot)
 [![Version](https://img.shields.io/badge/version-1.3.0-8b5cf6.svg)](SKILL.md)
 [![Tests](https://img.shields.io/badge/tests-passing-22c55e.svg)](tests/)
+
+<br>
 
 </div>
 
