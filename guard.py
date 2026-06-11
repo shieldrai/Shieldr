@@ -55,6 +55,7 @@ __all__ = [
     "Finding",
     "PolicyViolation",
     "SKILL_VERSION",
+    "__version__",
     "INJECTION_PATTERNS",
 ]
 
@@ -71,6 +72,7 @@ logger.addHandler(logging.NullHandler())
 
 SKILL_NAME     = "shieldr"
 SKILL_VERSION  = "1.3.0"
+__version__    = SKILL_VERSION          # PEP 396 — importable as guard.__version__
 COMMAND_PREFIX = "/shieldr"
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -787,16 +789,25 @@ def check_spending_policy(
 
 def dry_run_transaction(tx: dict) -> dict:
     """
-    Dry-run simulation stub.
+    Dry-run simulation — local policy and sanity checks without an RPC call.
 
-    Replace the stub body with a real provider call (Tenderly, Alchemy Simulate,
-    or a local Anvil fork) for live results.
+    Validates field types, applies the active spending policy, flags suspicious
+    recipient addresses, and returns a structured simulation report.
 
-    Required keys: to, from_, value, data, chain_id.
+    For live EVM simulation (state changes, revert reasons, exact gas) replace
+    the body with a Tenderly / Alchemy Simulate / Anvil call and preserve the
+    return schema below.
+
+    Required keys: to, from_, value, data, chain_id
+      to        str   — recipient address  (0x{40-hex})
+      from_     str   — sender address     (0x{40-hex})
+      value     int   — wei value          (≥ 0)
+      data      str   — calldata hex       ("0x" for plain ETH transfer)
+      chain_id  int   — EIP-155 chain ID   (1 = Ethereum mainnet)
     """
+    # ── 1. Field presence check ──────────────────────────────────────────────
     required = {"to", "from_", "value", "data", "chain_id"}
     missing  = required - set(tx.keys())
-
     if missing:
         return {
             "success":   False,
@@ -804,21 +815,115 @@ def dry_run_transaction(tx: dict) -> dict:
             "error":     f"Missing required fields: {', '.join(sorted(missing))}",
         }
 
-    return {
+    warnings: list[str] = []
+    flags:    list[str] = []
+
+    # ── 2. Type / format validation ──────────────────────────────────────────
+    to_addr   = str(tx.get("to",       ""))
+    from_addr = str(tx.get("from_",    ""))
+    value_wei = tx.get("value", 0)
+    calldata  = str(tx.get("data",     "0x"))
+    chain_id  = tx.get("chain_id",     1)
+
+    _addr_re = re.compile(r"^0x[0-9a-fA-F]{40}$", re.IGNORECASE)
+
+    if not _addr_re.match(to_addr):
+        return {
+            "success":   False,
+            "simulated": False,
+            "error":     f"Invalid recipient address: '{to_addr}'",
+        }
+    if not _addr_re.match(from_addr):
+        return {
+            "success":   False,
+            "simulated": False,
+            "error":     f"Invalid sender address: '{from_addr}'",
+        }
+    if not isinstance(value_wei, (int, float)) or value_wei < 0:
+        return {
+            "success":   False,
+            "simulated": False,
+            "error":     f"Invalid value: '{value_wei}' — must be a non-negative number",
+        }
+
+    # ── 3. Spending policy check ─────────────────────────────────────────────
+    # Rough ETH→USD conversion for policy (no live price feed — use 1 ETH = $3,000)
+    ETH_USD_ESTIMATE = 3_000.0
+    value_eth = value_wei / 1e18 if isinstance(value_wei, (int, float)) else 0.0
+    value_usd = value_eth * ETH_USD_ESTIMATE
+
+    policy_violations = check_spending_policy(
+        amount_usd=value_usd,
+        to_address=to_addr,
+    )
+    if policy_violations:
+        for v in policy_violations:
+            flags.append(f"POLICY:{v.rule} — {v.detail}")
+
+    # ── 4. Suspicious address heuristics ────────────────────────────────────
+    # Null / burn address
+    if to_addr.lower() in ("0x0000000000000000000000000000000000000000",
+                           "0x000000000000000000000000000000000000dead"):
+        flags.append("SUSPICIOUS_RECIPIENT:burn/null address — funds will be unrecoverable")
+        warnings.append("Sending to the burn/null address is irreversible.")
+
+    # Sender == recipient
+    if to_addr.lower() == from_addr.lower():
+        warnings.append("Sender and recipient are the same address.")
+
+    # ── 5. Calldata analysis ─────────────────────────────────────────────────
+    is_contract_call = calldata not in ("0x", "0X", "", "0x0")
+    gas_estimate     = 21_000 + (len(calldata) // 2) * 16 if is_contract_call else 21_000
+
+    token_transfers: list[dict] = []
+
+    # ERC-20 transfer(address,uint256) selector: 0xa9059cbb
+    if calldata.lower().startswith("0xa9059cbb") and len(calldata) >= 138:
+        try:
+            recipient_raw = calldata[10:74]
+            amount_raw    = calldata[74:138]
+            erc20_to      = "0x" + recipient_raw[-40:]
+            erc20_amount  = int(amount_raw, 16)
+            token_transfers.append({
+                "type":    "ERC-20 transfer",
+                "to":      erc20_to,
+                "amount":  erc20_amount,
+                "note":    "Divide by token decimals (usually 1e18 or 1e6) for human amount",
+            })
+        except Exception:
+            pass
+
+    # ── 6. Build result ──────────────────────────────────────────────────────
+    result: dict = {
         "success":          True,
         "simulated":        True,
-        "provider":         "stub",
-        "gas_used":         0,
-        "state_changes":    [],
-        "token_transfers":  [],
-        "approval_granted": None,
-        "revert_reason":    None,
-        "chain_id":         tx.get("chain_id"),
-        "warning": (
-            "Simulation running in stub mode. "
-            "Connect Tenderly or Alchemy Simulate for live results."
+        "provider":         "shieldr-local",
+        "chain_id":         chain_id,
+        "from":             from_addr,
+        "to":               to_addr,
+        "value_wei":        value_wei,
+        "value_eth":        round(value_eth, 8),
+        "value_usd_est":    round(value_usd, 2),
+        "gas_estimate":     gas_estimate,
+        "is_contract_call": is_contract_call,
+        "token_transfers":  token_transfers,
+        "policy_flags":     flags,
+        "warnings":         warnings,
+        "revert_reason":    None,          # Requires live EVM — always None here
+        "state_changes":    [],            # Requires live EVM — always empty here
+        "note": (
+            "Local simulation: policy + heuristics only. "
+            "For live EVM results (state changes, exact gas, revert reasons) "
+            "connect Tenderly, Alchemy Simulate, or a local Anvil fork."
         ),
     }
+
+    if flags:
+        logger.warning("DRY_RUN_FLAGS: %s", "; ".join(flags))
+    else:
+        logger.info("DRY_RUN: %s → %s, %.6f ETH (~$%.2f)", from_addr, to_addr, value_eth, value_usd)
+
+    return result
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1248,16 +1353,24 @@ class Shieldr:
 
     def _cmd_dry_run(self, args: list[str], ctx: dict) -> str:
         return (
-            "ℹ️  Dry-run simulation — stub mode\n\n"
+            "ℹ️  Dry-run simulation — local mode\n\n"
+            "Shieldr's local simulator runs spending-policy checks, address\n"
+            "heuristics (burn/null address, sender=recipient), ERC-20 calldata\n"
+            "decoding, and gas estimation — no RPC call required.\n\n"
             "Python API usage:\n"
-            "  dry_run_transaction({\n"
-            "    'to': '0xRecipient',\n"
-            "    'from_': '0xSender',\n"
-            "    'value': 0,\n"
-            "    'data': '0x',\n"
-            "    'chain_id': 1,\n"
+            "  from guard import dry_run_transaction\n\n"
+            "  result = dry_run_transaction({\n"
+            "    'to':       '0xRecipient',\n"
+            "    'from_':    '0xSender',\n"
+            "    'value':    0,          # wei\n"
+            "    'data':     '0x',       # calldata ('0x' for plain ETH)\n"
+            "    'chain_id': 1,          # 1=Ethereum, 8453=Base, 137=Polygon\n"
             "  })\n\n"
-            "⚠️  Connect Tenderly or Alchemy Simulate for live results."
+            "  # result keys: success, gas_estimate, value_usd_est,\n"
+            "  #              policy_flags, warnings, token_transfers\n\n"
+            "⚙️  For live EVM results (state changes, exact gas, revert reasons)\n"
+            "   configure a provider in bankr.config.yaml:\n"
+            "     dry_run.provider: tenderly | alchemy"
         )
 
     def _cmd_confirm(self, args: list[str], ctx: dict) -> str:
@@ -1440,11 +1553,19 @@ def _run_self_test() -> None:
           "❌" in s.handle_command("/shieldr allowlist add notanaddress"))
 
     # ── Dry-run ────────────────────────────────────────────────────────────────
+    _valid_to   = "0xAbCdEf1234567890AbCdEf1234567890AbCdEf12"
+    _valid_from = "0xDeAdBeEf1234567890AbCdEf1234567890AbCdEf"
     dr = dry_run_transaction(
-        {"to": "0xDead", "from_": "0xBeef", "value": 0, "data": "0x", "chain_id": 1}
+        {"to": _valid_to, "from_": _valid_from, "value": 0, "data": "0x", "chain_id": 1}
     )
     check("Dry-run stub",           dr["simulated"] is True)
-    check("Dry-run missing fields", dry_run_transaction({"to": "0xDead"})["success"] is False)
+    check("Dry-run provider field", dr.get("provider") == "shieldr-local")
+    check("Dry-run gas estimate",   isinstance(dr.get("gas_estimate"), int) and dr["gas_estimate"] >= 21_000)
+    check("Dry-run missing fields", dry_run_transaction({"to": _valid_to})["success"] is False)
+    # Invalid address format
+    check("Dry-run invalid addr",   dry_run_transaction(
+        {"to": "notanaddr", "from_": _valid_from, "value": 0, "data": "0x", "chain_id": 1}
+    )["success"] is False)
 
     # ── Policy set / reset ─────────────────────────────────────────────────────
     s.handle_command("/shieldr set daily 9999")

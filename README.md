@@ -302,25 +302,48 @@ Shieldr/
 
 ```bash
 # Built-in self-test (no pytest required)
-python3 guard.py --self-test    # 46 inline checks
+python3 guard.py --self-test    # 50 inline checks
 
 # Full pytest suite
 pip install pytest
-pytest tests/ -v                # 82 tests
+pytest tests/ -v
 ```
+
+---
+
+## Roadmap
+
+| Status | Item |
+|---|---|
+| ✅ Done | 9-layer injection scanner (Base64, Hex, ROT-N, Morse, invisible unicode, Zalgo, entropy, keywords, intent) |
+| ✅ Done | Human confirmation gate |
+| ✅ Done | Spending policy + address allowlist |
+| ✅ Done | Local dry-run simulation (policy + heuristics + ERC-20 decode) |
+| ✅ Done | Structured audit logging |
+| ✅ Done | `bankr.config.yaml` integration |
+| 🔜 Planned | Live EVM simulation via Tenderly / Alchemy Simulate |
+| 🔜 Planned | GoPlus Labs / TRM Labs address reputation API integration |
+| 🔜 Planned | Homoglyph / Unicode lookalike character detection |
+| 🔜 Planned | Multi-chain policy profiles (per chain_id limits) |
+| 🔜 Planned | Confirmation timeout (auto-cancel after N seconds) |
+| 🔜 Planned | Webhook endpoint for direct HTTP integration |
 
 ---
 
 ## Contributing
 
-1. Fork the repo
-2. Create a feature branch
-3. Ensure `python3 guard.py --self-test` passes
-4. Ensure `pytest tests/ -v` passes
-5. Format: `black . && isort .`
-6. Open a pull request
+Contributions welcome. Please read this before opening a PR:
 
-See `docs/architecture.md` for design context before contributing.
+1. Fork the repo and create a feature branch
+2. Run `python3 guard.py --self-test` — must pass with zero failures
+3. Run `pytest tests/ -v` — all tests must pass
+4. Add tests for any new detector behaviour
+5. Format: `black . && isort .`
+6. Open a pull request — use the [PR template](.github/PULL_REQUEST_TEMPLATE.md)
+
+For bugs and feature requests, use the [issue templates](.github/ISSUE_TEMPLATE/).
+
+See `docs/architecture.md` for design context and extension patterns.
 
 ---
 

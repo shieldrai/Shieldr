@@ -1,0 +1,64 @@
+# bankr.config.yaml.example
+# ─────────────────────────────────────────────────────────────────────────────
+# Shieldr — Bankr.bot skill configuration
+#
+# Copy this file to bankr.config.yaml (or paste into your existing config),
+# then adjust the values to match your deployment.
+#
+# Quick start:
+#   cp bankr.config.yaml.example bankr.config.yaml
+#   python3 guard.py --self-test
+# ─────────────────────────────────────────────────────────────────────────────
+
+skills:
+  - name: shieldr
+    version: "1.3.0"
+    path: ./Shieldr                   # Path to the Shieldr directory
+    entrypoint: guard.py              # Main module — do not change
+    auto_load: true                   # Load on bot startup
+    enabled: true
+
+    # ── Spending policy ───────────────────────────────────────────────────────
+    # These are the default limits applied on startup.
+    # Operators can override them live via /shieldr set and /shieldr allowlist.
+    policy:
+      single_tx_limit_usd: 500        # Max USD per single transaction
+      daily_limit_usd: 2000           # Max cumulative USD per day
+      # address_allowlist:            # Optional: restrict to specific recipients
+      #   - "0xYourTrustedWallet1"
+      #   - "0xYourTrustedWallet2"
+
+    # ── Scan behaviour ────────────────────────────────────────────────────────
+    scan:
+      entropy_threshold: 4.5          # bits/symbol — raise to reduce false positives
+      min_scan_length: 8              # Inputs shorter than this are skipped
+      morse_token_ratio: 0.60         # Fraction of Morse tokens to trigger detector
+      invisible_char_ratio: 0.05      # Fraction of combining chars to trigger Zalgo
+
+    # ── Confirmation gate ─────────────────────────────────────────────────────
+    confirmation:
+      require_on_malicious: true      # Block execution until /shieldr confirm
+      # timeout_seconds: 300          # Future: auto-cancel after N seconds of silence
+
+    # ── Logging ───────────────────────────────────────────────────────────────
+    logging:
+      level: WARNING                  # DEBUG | INFO | WARNING | ERROR
+      # format: "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+      # file: ./logs/shieldr.log      # Uncomment to log to a file
+
+    # ── Dry-run simulation ────────────────────────────────────────────────────
+    # Shieldr ships with a stub. Uncomment and configure one provider for live results.
+    dry_run:
+      provider: stub                  # stub | tenderly | alchemy
+      # tenderly:
+      #   api_key: "${TENDERLY_API_KEY}"
+      #   account: "your-account"
+      #   project: "your-project"
+      # alchemy:
+      #   api_key: "${ALCHEMY_API_KEY}"
+      #   network: "eth-mainnet"
+
+    # ── Hooks (future) ────────────────────────────────────────────────────────
+    # hooks:
+    #   on_malicious: "notify_admin"  # Custom callback on MALICIOUS verdict
+    #   on_confirm:   "audit_log"     # Custom callback on human confirmation
