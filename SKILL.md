@@ -38,7 +38,8 @@ tags:
 
 <br>
 
-Built by [@TracyAG1976](https://x.com/TracyAG1976) &nbsp;𝕏 &nbsp;|&nbsp; [Website](https://shieldr.xyz) &nbsp;|&nbsp; [GitHub](https://github.com/shieldrai/Shieldr)
+Built by [@TracyAG1976](https://x.com/TracyAG1976) &nbsp;𝕏 &nbsp;|&nbsp; Official Bot: [@Shieldrbot](https://x.com/Shieldrbot) &nbsp;𝕏<br>
+[Website](https://shieldr.xyz) &nbsp;|&nbsp; [GitHub](https://github.com/shieldrai/Shieldr)
 
 <br>
 
