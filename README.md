@@ -15,6 +15,10 @@
 
 <br>
 
+Built by [@TracyAG1976](https://x.com/TracyAG1976) 𝕏
+
+<br>
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB.svg)](https://python.org)
 [![Bankr.bot v2.0+](https://img.shields.io/badge/Bankr.bot-v2.0%2B-22c55e.svg)](https://bankr.bot)
